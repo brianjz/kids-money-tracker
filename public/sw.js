@@ -4,8 +4,8 @@ self.addEventListener('push', event => {
 
   const options = {
     body: data.body,
-    icon: '/vite.svg',
-    badge: '/vite.svg'
+    icon: '/money-tracker.svg',
+    badge: '/money-tracker.svg'
   };
 
   event.waitUntil(
