@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/money-tracker.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Money Tracker</title>
+
+    <script>
+      // Polyfill for crypto.randomUUID() on insecure contexts
+      if (window.crypto && !window.crypto.randomUUID) {
+        window.crypto.randomUUID = () => {
+          return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+          );
+        };
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
