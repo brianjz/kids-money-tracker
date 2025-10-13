@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const API_URL = '/api/money';
 
@@ -106,20 +106,31 @@ function AuthPage({ onLogin }) {
 // --- Main Tracker Component ---
 function TrackerPage({ currentUser, onLogout }) {
     const [transactions, setTransactions] = useState([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState('income');
 
+    // --- Reusable function to fetch transactions ---
+    const fetchTransactions = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            const data = await apiFetch('/transactions');
+            setTransactions(data);
+        } catch (err) {
+            console.error("Failed to fetch transactions:", err);
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, []);
+
     useEffect(() => {
-        apiFetch('/transactions')
-            .then(setTransactions)
-            .catch(err => console.error("Failed to fetch transactions:", err));
+        fetchTransactions(); // Fetch on initial load
         
-        // If the logged-in user is an admin, try to set up push notifications
         if (currentUser.role === 'admin') {
             registerForPushNotifications();
         }
-    }, [currentUser.role]);
+    }, [currentUser.role, fetchTransactions]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -188,6 +199,17 @@ function TrackerPage({ currentUser, onLogout }) {
 
     return (
      <div className="bg-slate-900 min-h-screen text-slate-200 flex flex-col items-center p-4 sm:p-8 font-sans">
+        <style>
+        {`
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .animate-spin {
+                animation: spin 1s linear infinite;
+            }
+        `}
+        </style>
       <div className="w-full max-w-4xl">
         <header className="flex justify-between items-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-cyan-400">Money Tracker</h1>
@@ -206,7 +228,6 @@ function TrackerPage({ currentUser, onLogout }) {
             </p>
         </div>
         
-        {/* Individual Balances breakdown for Admins */}
         {currentUser.role === 'admin' && childBalances.length > 0 && (
             <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
                 <h3 className="text-xl font-semibold text-slate-400 mb-4 text-center">Individual Balances</h3>
@@ -222,7 +243,7 @@ function TrackerPage({ currentUser, onLogout }) {
                 </div>
             </div>
         )}
-        
+
         {currentUser.role === 'child' && (
              <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
                 <h2 className="text-2xl font-bold mb-4 text-cyan-400">Request a Transaction</h2>
@@ -239,7 +260,30 @@ function TrackerPage({ currentUser, onLogout }) {
         )}
 
         <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
-           <h2 className="text-2xl font-bold text-cyan-400 mb-4">Pending Transactions</h2>
+            <div className="flex items-center justify-between mb-4">
+               <h2 className="text-2xl font-bold text-cyan-400">Pending Transactions</h2>
+                <button 
+                    onClick={fetchTransactions}
+                    disabled={isRefreshing}
+                    className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Refresh transactions"
+                >
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className={`h-5 w-5 text-slate-400 ${isRefreshing ? 'animate-spin' : ''}`}
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                    >
+                        <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M4 4v5h5M20 20v-5h-5M4 4a8 8 0 0113.856 5.856M20 20a8 8 0 01-13.856-5.856" 
+                        />
+                    </svg>
+                </button>
+            </div>
             <ul className="space-y-3">
                 {transactions.filter(t => t.status === 'pending').map(t => (
                     <li key={t.id} className="flex flex-wrap items-center justify-between bg-slate-700 p-3 rounded-md">
