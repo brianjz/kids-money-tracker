@@ -87,7 +87,7 @@ const sendNotification = async (transaction) => {
 // --- API Routes ---
 
 // AUTH: Register a new user
-app.post('/api/register', async (req, res) => {
+app.post('/api/money/register', async (req, res) => {
   try {
     const { name, password, role } = req.body;
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -101,7 +101,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 // AUTH: Login a user
-app.post('/api/login', async (req, res) => {
+app.post('/api/money/login', async (req, res) => {
     try {
         const { name, password } = req.body;
         const sql = 'SELECT * FROM users WHERE name = ?';
@@ -121,12 +121,12 @@ app.post('/api/login', async (req, res) => {
 });
 
 // GET: VAPID Public Key for the frontend
-app.get('/api/vapid-public-key', (req, res) => {
+app.get('/api/money/vapid-public-key', (req, res) => {
     res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
 
 // POST: Subscribe to push notifications
-app.post('/api/subscribe', authenticateToken, async (req, res) => {
+app.post('/api/money/subscribe', authenticateToken, async (req, res) => {
     const subscription = req.body;
     const userId = req.user.id;
     try {
@@ -140,7 +140,7 @@ app.post('/api/subscribe', authenticateToken, async (req, res) => {
 });
 
 // GET: Fetch all transactions (Protected)
-app.get('/api/transactions', authenticateToken, async (req, res) => {
+app.get('/api/money/transactions', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM transactions ORDER BY created_at DESC');
     res.json(rows);
@@ -151,7 +151,7 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 });
 
 // POST: Add a new transaction (Protected)
-app.post('/api/transactions', authenticateToken, async (req, res) => {
+app.post('/api/money/transactions', authenticateToken, async (req, res) => {
   try {
     const { description, amount, type, child_name } = req.body;
     const sql = 'INSERT INTO transactions (description, amount, type, child_name) VALUES (?, ?, ?, ?)';
@@ -169,7 +169,7 @@ app.post('/api/transactions', authenticateToken, async (req, res) => {
 });
 
 // PUT: Approve a transaction (Protected & Admin only)
-app.put('/api/transactions/:id/approve', authenticateToken, async (req, res) => {
+app.put('/api/money/transactions/:id/approve', authenticateToken, async (req, res) => {
   // Check if the authenticated user is an admin
   if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Only admins can approve transactions.' });
@@ -192,7 +192,7 @@ app.put('/api/transactions/:id/approve', authenticateToken, async (req, res) => 
 });
 
 // DELETE: Decline and delete a transaction
-app.put('/api/transactions/:id/decline', authenticateToken, async (req, res) => {
+app.put('/api/money/transactions/:id/decline', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Forbidden: Only admins can decline transactions.' });
     }

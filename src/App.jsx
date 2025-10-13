@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_URL = '/api';
+const API_URL = '/api/money';
 
 // --- Push Notification Subscription Logic ---
 async function registerForPushNotifications() {
