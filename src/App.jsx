@@ -165,10 +165,26 @@ function TrackerPage({ currentUser, onLogout }) {
         }
     };
 
-    const totalBalance = transactions.reduce((acc, t) => {
-        if (t.status !== 'approved') return acc;
+    // Calculate the main balance. If admin, it's the grand total. If child, it's their personal total.
+    const mainBalance = transactions
+      .filter(t => t.status === 'approved')
+      .reduce((acc, t) => {
         return t.type === 'income' ? acc + parseFloat(t.amount) : acc - parseFloat(t.amount);
-    }, 0);
+      }, 0);
+
+    // Calculate individual child balances only if the user is an admin
+    let childBalances = [];
+    if (currentUser.role === 'admin') {
+        const childNames = [...new Set(transactions.map(t => t.child_name))].sort();
+        childBalances = childNames.map(name => {
+            const balance = transactions
+                .filter(t => t.child_name === name && t.status === 'approved')
+                .reduce((acc, t) => {
+                    return t.type === 'income' ? acc + parseFloat(t.amount) : acc - parseFloat(t.amount);
+                }, 0);
+            return { name, balance };
+        });
+    }
 
     return (
      <div className="bg-slate-900 min-h-screen text-slate-200 flex flex-col items-center p-4 sm:p-8 font-sans">
@@ -182,11 +198,30 @@ function TrackerPage({ currentUser, onLogout }) {
         </header>
 
         <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8 text-center">
-            <h2 className="text-xl font-semibold text-slate-400">Total Approved Balance</h2>
-            <p className={`text-4xl font-bold mt-2 ${totalBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${totalBalance.toFixed(2)}
+            <h2 className="text-xl font-semibold text-slate-400">
+                {currentUser.role === 'admin' ? 'Total Approved Balance (All Children)' : 'My Approved Balance'}
+            </h2>
+            <p className={`text-4xl font-bold mt-2 ${mainBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                ${mainBalance.toFixed(2)}
             </p>
         </div>
+        
+        {/* Individual Balances breakdown for Admins */}
+        {currentUser.role === 'admin' && childBalances.length > 0 && (
+            <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
+                <h3 className="text-xl font-semibold text-slate-400 mb-4 text-center">Individual Balances</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {childBalances.map(child => (
+                        <div key={child.name} className="bg-slate-700 p-4 rounded-lg flex justify-between items-center">
+                            <span className="font-bold text-slate-200">{child.name}</span>
+                            <span className={`font-semibold ${child.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                ${child.balance.toFixed(2)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
         
         {currentUser.role === 'child' && (
              <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">

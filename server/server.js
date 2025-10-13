@@ -139,10 +139,20 @@ app.post('/api/money/subscribe', authenticateToken, async (req, res) => {
     }
 });
 
-// GET: Fetch all transactions (Protected)
+// GET: Fetch all transactions (Protected and Scoped to User Role)
 app.get('/api/money/transactions', authenticateToken, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM transactions ORDER BY created_at DESC');
+    let sql = 'SELECT * FROM transactions ORDER BY created_at DESC';
+    let params = [];
+
+    // If the logged-in user is a child, modify the query to only show their transactions.
+    if (req.user.role === 'child') {
+      sql = 'SELECT * FROM transactions WHERE child_name = ? ORDER BY created_at DESC';
+      params.push(req.user.name);
+    }
+
+    console.log(sql)
+    const [rows] = await pool.query(sql, params);
     res.json(rows);
   } catch (error) {
     console.error('Failed to fetch transactions:', error);
