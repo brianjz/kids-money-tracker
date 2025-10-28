@@ -87,7 +87,7 @@ function AuthPage({ onLogin }) {
         method: 'POST',
         body: JSON.stringify({ name, password }),
       });
-      onLogin(data.accessToken, data.user);
+      onLogin(data.accessToken);
     } catch (err) {
       setError(err.message);
     }
@@ -353,6 +353,7 @@ function TrackerPage({ currentUser, onLogout }) {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     // This effect synchronizes the token state with localStorage
@@ -372,16 +373,25 @@ export default function App() {
       localStorage.removeItem('token');
       setCurrentUser(null);
     }
+    setAuthReady(true);
   }, [token]);
 
-  const handleLogin = (newToken, user) => {
+  const handleLogin = (newToken) => {
     setToken(newToken);
-    setCurrentUser(user);
+    // setCurrentUser(user);
   };
   
   const handleLogout = () => {
     setToken(null);
   };
+
+  if (!authReady) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-900">
+            {/* This prevents the app from rendering while auth state is uncertain */}
+        </div>
+    );
+  }
 
   return (
     <div>
