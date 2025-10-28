@@ -56,6 +56,16 @@ const apiFetch = async (endpoint, options = {}) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+
+  if (response.status === 401 || response.status === 403) {
+    // Token is invalid or expired.
+    // Log the user out by clearing the token and reload the page.
+    localStorage.removeItem('token');
+    window.location.reload(); // Force a full page reload to go back to the login screen
+    // Throw an error to stop the current function from proceeding
+    throw new Error('Session expired. Please log in again.');
+  }
+
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(errorBody.error || `HTTP error! status: ${response.status}`);
