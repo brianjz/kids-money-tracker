@@ -207,8 +207,19 @@ function TrackerPage({ currentUser, onLogout }) {
         });
     }
 
+    // --- Pagination Logic ---
+    const pendingTransactions = transactions.filter(t => t.status === 'pending');
+    const historyTransactions = transactions.filter(t => t.status === 'approved' || t.status === 'declined');
+    
+    const totalPages = Math.ceil(historyTransactions.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const currentHistory = historyTransactions.slice(startIndex, startIndex + itemsPerPage);
+
+    const goToPreviousPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+    const goToNextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+
     return (
-     <div className="bg-slate-900 min-h-screen text-slate-200 flex flex-col items-center p-4 sm:p-8 font-sans">
+      <div className="bg-slate-900 min-h-screen text-slate-200 flex flex-col items-center p-4 sm:p-8 font-sans">
         <style>
         {`
             @keyframes spin {
@@ -315,39 +326,58 @@ function TrackerPage({ currentUser, onLogout }) {
                     </li>
                 ))}
             </ul>
-           <h2 className="text-2xl font-bold text-cyan-400 mt-8 mb-4">Approved Transactions</h2>
-           <ul className="space-y-3">
-            {transactions.filter(t => t.status === 'approved').map(t => (
-                <li key={t.id} className="flex flex-wrap items-center justify-between bg-slate-900/50 p-3 rounded-md opacity-70">
-                    <div>
-                        <span className="font-semibold">{t.description}</span>
-                        <span className="text-xs text-slate-400 block">{t.child_name} - Approved by {t.approved_by}</span>
-                    </div>
-                    <div className={`font-semibold ${t.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                        {t.type === 'income' ? '+' : '-'}${parseFloat(t.amount).toFixed(2)}
-                    </div>
-                </li>
-            ))}
+{/* Transaction History Section (Approved & Declined) */}
+           <h2 className="text-2xl font-bold text-cyan-400 mt-8 mb-4 border-t border-slate-700 pt-6">Transaction History</h2>
+           
+           <ul className="space-y-3 min-h-[200px]">
+            {currentHistory.length === 0 ? (
+                 <p className="text-slate-500 italic">No history available.</p>
+            ) : (
+                currentHistory.map(t => (
+                    <li key={t.id} className={`flex flex-wrap items-center justify-between bg-slate-900/50 p-3 rounded-md ${t.status === 'declined' ? 'opacity-50' : 'opacity-80'}`}>
+                        <div>
+                            <span className={`font-semibold ${t.status === 'declined' ? 'line-through' : ''}`}>{t.description}</span>
+                            <span className="text-xs text-slate-400 block">
+                                {t.child_name} 
+                                <span className="mx-1">•</span> 
+                                {t.status === 'approved' ? <span className="text-green-500">Approved</span> : <span className="text-red-500">Declined</span>}
+                                {t.approved_by && ` by ${t.approved_by}`}
+                            </span>
+                        </div>
+                        <div className={`font-semibold ${t.status === 'declined' ? 'text-slate-500 line-through' : (t.type === 'income' ? 'text-green-400' : 'text-red-400')}`}>
+                            {t.type === 'income' ? '+' : '-'}${parseFloat(t.amount).toFixed(2)}
+                        </div>
+                    </li>
+                ))
+            )}
           </ul>
-           <h2 className="text-2xl font-bold text-cyan-400 mt-8 mb-4">Declined Transactions</h2>
-           <ul className="space-y-3">
-            {transactions.filter(t => t.status === 'declined').map(t => (
-                <li key={t.id} className="flex flex-wrap items-center justify-between bg-slate-900/50 p-3 rounded-md opacity-50">
-                    <div>
-                        <span className="font-semibold line-through">{t.description}</span>
-                        <span className="text-xs text-slate-400 block">{t.child_name} - Declined by {t.approved_by}</span>
-                    </div>
-                    <div className={`font-semibold text-slate-500 line-through`}>
-                        {t.type === 'income' ? '+' : '-'}${parseFloat(t.amount).toFixed(2)}
-                    </div>
-                </li>
-            ))}
-          </ul>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+              <div className="flex justify-center items-center mt-6 space-x-4">
+                  <button 
+                    onClick={goToPreviousPage} 
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-slate-400 text-sm">Page {currentPage} of {totalPages}</span>
+                  <button 
+                    onClick={goToNextPage} 
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+              </div>
+          )}
+
         </div>
       </div>
     </div>
     );
-}
+  }
 
 // --- App Component (Main controller) ---
 export default function App() {
