@@ -112,7 +112,6 @@ function AuthPage({ onLogin }) {
   );
 }
 
-
 // --- Main Tracker Component ---
 function TrackerPage({ currentUser, onLogout }) {
     const [transactions, setTransactions] = useState([]);
@@ -120,8 +119,10 @@ function TrackerPage({ currentUser, onLogout }) {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState('income');
+    const [childrenList, setChildrenList] = useState([]);
+    const [selectedChild, setSelectedChild] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 15;
+    const itemsPerPage = 7;
 
     // --- Reusable function to fetch transactions ---
     const fetchTransactions = useCallback(async () => {
@@ -136,22 +137,38 @@ function TrackerPage({ currentUser, onLogout }) {
         }
     }, []);
 
+    // --- Fetch Children (Admin Only) ---
+    const fetchChildren = useCallback(async () => {
+        try {
+            const data = await apiFetch('/children');
+            setChildrenList(data);
+            if (data.length > 0) setSelectedChild(data[0].name);
+        } catch (err) {
+            console.error("Failed to fetch children:", err);
+        }
+    }, []);
+
     useEffect(() => {
         fetchTransactions(); // Fetch on initial load
         
         if (currentUser.role === 'admin') {
             registerForPushNotifications();
+            fetchChildren();
         }
-    }, [currentUser.role, fetchTransactions]);
+    }, [currentUser.role, fetchTransactions, fetchChildren]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!description || !amount) return;
+        
+        const targetChild = currentUser.role === 'admin' ? selectedChild : currentUser.name;
+        if (!targetChild) return;
+
         const newTransaction = {
             description,
             amount: parseFloat(amount),
             type,
-            child_name: currentUser.name, // Children can only submit for themselves
+            child_name: targetChild,
         };
         try {
             const savedTransaction = await apiFetch('/transactions', {
@@ -161,8 +178,12 @@ function TrackerPage({ currentUser, onLogout }) {
             setTransactions([savedTransaction, ...transactions]);
             setDescription('');
             setAmount('');
+            if (currentUser.role === 'admin') {
+                alert("Transaction added and approved.");
+            }
         } catch (err) {
             console.error("Failed to add transaction:", err);
+            alert(err.message);
         }
     };
     
@@ -267,20 +288,40 @@ function TrackerPage({ currentUser, onLogout }) {
             </div>
         )}
 
-        {currentUser.role === 'child' && (
-             <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
-                <h2 className="text-2xl font-bold mb-4 text-cyan-400">Request a Transaction</h2>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                    <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none"/>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none"/>
-                    <select value={type} onChange={e => setType(e.target.value)} className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                        <option value="income">Income</option>
-                        <option value="expense">Expense</option>
-                    </select>
-                    <button type="submit" className="sm:col-span-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md w-full mt-2">Submit Request</button>
-                </form>
-            </div>
-        )}
+        {/* Add Transaction Form (For both Admin and Child) */}
+        <div className="bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
+            <h2 className="text-2xl font-bold mb-4 text-cyan-400">
+                {currentUser.role === 'admin' ? 'Add Transaction (Auto-Approved)' : 'Request a Transaction'}
+            </h2>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Description" className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none"/>
+                <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none"/>
+                <select value={type} onChange={e => setType(e.target.value)} className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+                
+                {currentUser.role === 'admin' && (
+                    <div className="sm:col-span-3 flex flex-col mt-2">
+                        <label className="mb-1 text-sm text-slate-400">Assign to Child:</label>
+                        <select 
+                            value={selectedChild} 
+                            onChange={e => setSelectedChild(e.target.value)} 
+                            className="bg-slate-700 p-2 rounded-md w-full focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                        >
+                            {childrenList.map(child => (
+                                <option key={child.name} value={child.name}>{child.name}</option>
+                            ))}
+                            {childrenList.length === 0 && <option disabled>No children found</option>}
+                        </select>
+                    </div>
+                )}
+
+                <button type="submit" className="sm:col-span-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md w-full mt-4">
+                    {currentUser.role === 'admin' ? 'Add Approved Transaction' : 'Submit Request'}
+                </button>
+            </form>
+        </div>
 
         <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
             <div className="flex items-center justify-between mb-4">

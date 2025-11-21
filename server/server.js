@@ -139,6 +139,21 @@ app.post('/api/money/subscribe', authenticateToken, async (req, res) => {
     }
 });
 
+// GET: Fetch children (For Admin dropdown)
+app.get('/api/money/children', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    try {
+        const sql = 'SELECT name FROM users WHERE role = "child" ORDER BY name ASC';
+        const [rows] = await pool.query(sql);
+        res.json(rows);
+    } catch (error) {
+        console.error('Failed to fetch children:', error);
+        res.status(500).json({ error: 'Database query failed' });
+    }
+});
+
 // GET: Fetch all transactions (Protected and Scoped to User Role)
 app.get('/api/money/transactions', authenticateToken, async (req, res) => {
   try {
@@ -164,12 +179,30 @@ app.get('/api/money/transactions', authenticateToken, async (req, res) => {
 app.post('/api/money/transactions', authenticateToken, async (req, res) => {
   try {
     const { description, amount, type, child_name } = req.body;
-    const sql = 'INSERT INTO transactions (description, amount, type, child_name) VALUES (?, ?, ?, ?)';
-    const [result] = await pool.query(sql, [description, amount, type, child_name]);
+    
+    // Default status for requests
+    let status = 'pending';
+    let approvedBy = null;
+
+    // If Admin is creating it, approve immediately
+    if (req.user.role === 'admin') {
+        status = 'approved';
+        approvedBy = req.user.name;
+    } else {
+        // If a child is creating it, force the child_name to be themselves for security
+        if (child_name !== req.user.name) {
+            return res.status(403).json({ error: 'You can only submit requests for yourself.' });
+        }
+    }
+
+    const sql = 'INSERT INTO transactions (description, amount, type, child_name, status, approved_by) VALUES (?, ?, ?, ?, ?, ?)';
+    const [result] = await pool.query(sql, [description, amount, type, child_name, status, approvedBy]);
     const [[newTransaction]] = await pool.query('SELECT * FROM transactions WHERE id = ?', [result.insertId]);
     
-    // Send notification after successfully creating transaction
-    sendNotification(newTransaction);
+    // Send notification only if it's a pending request (not auto-approved by admin)
+    if (status === 'pending') {
+        sendNotification(newTransaction);
+    }
     
     res.status(201).json(newTransaction);
   } catch (error) {
@@ -177,7 +210,6 @@ app.post('/api/money/transactions', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Database insert failed' });
   }
 });
-
 // PUT: Approve a transaction (Protected & Admin only)
 app.put('/api/money/transactions/:id/approve', authenticateToken, async (req, res) => {
   // Check if the authenticated user is an admin
