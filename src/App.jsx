@@ -120,6 +120,8 @@ function TrackerPage({ currentUser, onLogout }) {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState('income');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 15;
 
     // --- Reusable function to fetch transactions ---
     const fetchTransactions = useCallback(async () => {
